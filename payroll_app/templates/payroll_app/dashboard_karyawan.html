@@ -1,0 +1,58 @@
+{% extends "payroll_app/base.html" %}
+
+{% block title %}Employee Dashboard{% endblock %}
+
+{% block content %}
+<div class="dashboard-header">
+    <h2>Employee Dashboard</h2>
+    <p>View your attendance and payroll records securely.</p>
+</div>
+
+<div class="grid-container">
+    <div class="card">
+        <h3>Record Attendance</h3>
+        <form method="POST" action="{% url 'record_attendance' %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="status">Today's Status</label>
+                <!-- Client-side allowlist for status -->
+                <select name="status" id="status" required>
+                    <option value="" disabled selected>Select Status</option>
+                    <option value="Present">Present</option>
+                    <option value="Leave">Leave</option>
+                </select>
+            </div>
+            <button type="submit" class="btn-success">Submit Attendance</button>
+        </form>
+    </div>
+
+    <div class="card">
+        <h3>My Recent Payrolls</h3>
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Month</th>
+                        <th>Year</th>
+                        <th>Amount</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for slip in payrolls %}
+                    <tr>
+                        <!-- XSS Prevention: Django auto-escapes these variables -->
+                        <td>{{ slip.month }}</td>
+                        <td>{{ slip.year }}</td>
+                        <td>Rp {{ slip.total_salary }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="3">No payroll records found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
