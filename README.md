@@ -1,93 +1,155 @@
-# PKPL26_57_basing
+# Sistem HR & Payroll Perusahaan (PKPL26)
+
+Sistem ini merupakan aplikasi manajemen sumber daya manusia dan penggajian yang dibangun menggunakan framework **Django** dengan basis data **SQLite**. Sistem ini dirancang untuk mensimulasikan lingkungan operasional perusahaan dengan memperhatikan standar keamanan siber (*secure coding*).
 
 
+## Role & Hak Akses Pengguna
+1. **Karyawan**: Pengguna internal yang bertugas melakukan absensi harian dan melihat riwayat slip gaji miliknya.
+2. **Manajer**: Pengguna dengan hak akses setingkat karyawan namun dapat di-expand sesuai kebutuhan operasional tim di masa mendatang.
+3. **HR (SDM)**: Administrator yang memiliki otoritas mencetak dan *meng-generate* slip gaji bulanan untuk seluruh karyawan.
 
-## Getting started
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## Laporan Implementasi Keamanan (Security Implementation Report)
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+Berikut adalah 4 detail kerentanan utama, referensi CWE yang relevan, beserta mitigasi teknis yang telah diimplementasikan:
 
-## Add your files
+### 1. Pencegahan Code Injection (XSS)
+- **Referensi CWE**: [CWE-79: Improper Neutralization of Input During Web Page Generation ('Cross-site Scripting')](https://cwe.mitre.org/data/definitions/79.html)
+- **Vulnerability**: Form input yang tidak divalidasi dan teks yang tidak di-*escape* dapat disisipi tag `<script>` berbahaya yang akan tereksekusi oleh browser klien.
+- **Snippet Sebelum (Vulnerable)**:
+  ```html
+  <!-- Tampilan langsung tanpa sanitasi/escape -->
+  <td>{{ slip.total_salary | safe }}</td>
+  ```
+- **Snippet Sesudah (Secure)**:
+  ```html
+  <!-- Pembatasan karakter input di klien (Allowlist) -->
+  <input type="text" id="username" name="username" required pattern="[a-zA-Z0-9_]+" maxlength="50">
+  
+  <!-- Django Auto-escaping aktif secara default -->
+  <td>{{ slip.total_salary }}</td>
+  ```
+- **Argumen Mitigasi**: Kami menerapkan teknik *allowlist* menggunakan atribut HTML5 `pattern` dan `maxlength` pada antarmuka pengguna guna memblokir injeksi karakter aneh secara dini. Di sisi peladen, variabel dikelola menggunakan fitur *auto-escaping* bawaan *template engine* Django, yang secara otomatis mengonversi karakter khusus HTML menjadi representasi aman (misalnya `<script>` menjadi `&lt;script&gt;`).
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+### 2. Mitigasi Broken Authentication (Hashing & Session)
+- **Referensi CWE**: [CWE-256: Unprotected Storage of Credentials](https://cwe.mitre.org/data/definitions/256.html) & [CWE-613: Insufficient Session Expiration](https://cwe.mitre.org/data/definitions/613.html)
+- **Vulnerability**: Menyimpan kata sandi dalam teks terang (*plaintext*) dan membiarkan sesi tetap hidup tanpa batas waktu sangat rentan terhadap pencurian kredensial dan *Session Hijacking*.
+- **Snippet Sebelum (Vulnerable)**:
+  ```python
+  SESSION_EXPIRE_AT_BROWSER_CLOSE = False
+  # Kata sandi disimpan menggunakan MD5 atau tidak terenkripsi
+  ```
+- **Snippet Sesudah (Secure)**:
+  ```python
+  # settings.py
+  PASSWORD_HASHERS = [
+      'django.contrib.auth.hashers.PBKDF2PasswordHasher',
+  ]
+  SESSION_EXPIRE_AT_BROWSER_CLOSE = True
+  ```
+- **Argumen Mitigasi**: Untuk penyimpanan kata sandi, kami mewajibkan algoritma **PBKDF2** (*Password-Based Key Derivation Function 2*) bawaan Django yang sangat tangguh terhadap serangan *brute-force* maupun *rainbow tables* karena menerapkan iterasi komputasi yang tinggi. Untuk pengelolaan sesi, masa berlaku sesi diatur agar otomatis hancur seketika saat jendela browser ditutup, mencegah pencurian sesi jika pengguna lupa *logout* di komputer publik.
 
-```
-cd existing_repo
-git remote add origin https://gitlab.cs.ui.ac.id/pkpl26/57-basing/pkpl26_57_basing.git
-git branch -M main
-git push -uf origin main
-```
+### 3. Mitigasi Broken Authentication (Lockout & Least Privilege)
+- **Referensi CWE**: [CWE-307: Improper Restriction of Excessive Authentication Attempts](https://cwe.mitre.org/data/definitions/307.html) & [CWE-285: Improper Authorization](https://cwe.mitre.org/data/definitions/285.html)
+- **Vulnerability**: Ketiadaan batas gagal *login* memungkinkan serangan tebak sandi masif (*Credential Stuffing/Brute-force*). Akses fungsional dan berkas sistem yang tidak dibatasi juga melanggar keamanan data.
+- **Snippet Sebelum (Vulnerable)**:
+  ```python
+  def generate_payroll(request):
+      # Dieksekusi secara publik tanpa validasi status HR
+  ```
+- **Snippet Sesudah (Secure)**:
+  ```python
+  # views.py (Least Privilege via RBAC)
+  @login_required
+  @user_passes_test(is_hr, login_url='/login/')
+  def generate_payroll(request):
+      ...
+      
+  # settings.py (Lockout)
+  AXES_FAILURE_LIMIT = 5
+  AXES_LOCK_OUT_AT_FAILURE = True
+  ```
+- **Argumen Mitigasi**: Kami mengintegrasikan pustaka `django-axes` yang segera memblokir dan mengunci IP serta akun setelah 5 kali kegagalan masuk berturut-turut. Pada area fungsional sistem, kami menerapkan *Role-Based Access Control* (RBAC) menggunakan dekorator Django untuk memastikan fungsi krusial seperti pencetakan slip gaji hanya dapat diakses oleh peran HR. Di level sistem operasi, hak akses file *database* (`db.sqlite3`) juga dibatasi dengan izin baca-tulis eksklusif hanya untuk *owner* sistem.
 
-## Integrate with your tools
+### 4. Perlindungan CSRF & Pencegahan SQL Injection
+- **Referensi CWE**: [CWE-352: Cross-Site Request Forgery (CSRF)](https://cwe.mitre.org/data/definitions/352.html) & [CWE-89: Improper Neutralization of Special Elements used in an SQL Command ('SQL Injection')](https://cwe.mitre.org/data/definitions/89.html)
+- **Vulnerability**: Endpoint modifikasi data yang tak memiliki *token* rahasia sangat mudah dieksploitasi oleh web penyerang melalui klik tersembunyi. Sementara itu, penggunaan penggabungan *string* secara langsung ke *query* SQL memicu risiko pengeksekusian kueri ilegal oleh pengguna.
+- **Snippet Sebelum (Vulnerable)**:
+  ```python
+  # Raw Query rentan SQL Injection
+  Payroll.objects.raw(f"UPDATE payroll SET total = {amount} WHERE user_id = {user_id}")
+  ```
+- **Snippet Sesudah (Secure)**:
+  ```html
+  <!-- Template Form CSRF -->
+  <form method="POST" action="{% url 'generate_payroll' %}">
+      {% csrf_token %}
+  </form>
+  ```
+  ```python
+  # Django ORM Parameterized Query
+  Payroll.objects.update_or_create(
+      employee=employee,
+      month=month, year=year,
+      defaults={'total_salary': total_salary}
+  )
+  ```
+- **Argumen Mitigasi**: Server dilindungi oleh `CsrfViewMiddleware` yang secara ketat memvalidasi kepemilikan sesi melalui *tag* `{% csrf_token %}` pada seluruh permintaan metode POST/PUT/DELETE. Untuk interaksi *database*, seluruh *raw SQL* ditinggalkan dan diganti secara mutlak dengan model dan *method* agregat bawaan Django ORM (seperti `update_or_create` atau `filter`). ORM Django secara inheren memproses argumen menggunakan metode *parameterized queries* pada *driver database* yang langsung menetralkan elemen ilegal.
 
-* [Set up project integrations](https://gitlab.cs.ui.ac.id/pkpl26/57-basing/pkpl26_57_basing/-/settings/integrations)
+---
 
-## Collaborate with your team
+## Petunjuk Instalasi & Menjalankan Aplikasi
+Aplikasi ini bersifat lintas platform dan dapat dijalankan dengan mudah pada OS Windows, macOS, maupun Linux.
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+### Persyaratan Minimal
+- **Python** versi 3.9 ke atas
+- **Pip** (Package Installer Python)
 
-## Test and Deploy
+### Langkah Instalasi
+1. Lakukan *clone* terhadap repositori ini ke komputer lokal Anda:
+   ```bash
+   git clone https://gitlab.cs.ui.ac.id/pkpl26/57-basing/pkpl26_57_basing.git
+   ```
+2. Arahkan direktori terminal/Command Prompt ke dalam folder proyek:
+   ```bash
+   cd pkpl26_57_basing
+   ```
+3. Buat dan aktifkan **Virtual Environment** untuk mengisolasi instalasi pustaka:
+   - **Windows**: 
+     ```bash
+     python -m venv venv
+     venv\Scripts\activate
+     ```
+   - **macOS/Linux**: 
+     ```bash
+     python3 -m venv venv
+     source venv/bin/activate
+     ```
+4. Pasang modul dependensi yang dibutuhkan (Django dan django-axes):
+   ```bash
+   pip install django django-axes
+   ```
+5. *(Opsional)* Jika *database* perlu dikonfigurasi ulang, jalankan perintah migrasi:
+   ```bash
+   python manage.py makemigrations payroll_app
+   python manage.py migrate
+   ```
+6. Jalankan server HTTP lokal bawaan Django:
+   ```bash
+   python manage.py runserver
+   ```
+7. Aplikasi sudah berjalan! Buka browser pilihan Anda dan akses `http://127.0.0.1:8000`.
 
-Use the built-in continuous integration in GitLab.
+---
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+## Visual Testing Assets (Placeholder)
+*(Berikut adalah tempat untuk menyematkan screenshot antarmuka utama, fitur keamanan, dan log hasil pengujian sebelum pengumpulan)*
+- `[ ]` Screenshot Halaman Login
+- `[ ]` Screenshot Dashboard Karyawan
+- `[ ]` Screenshot Dashboard HR
+- `[ ]` Screenshot Bukti Akun Terkunci (Lockout IP/Akun via Axes)
 
-***
+## Link Video Demonstrasi
+**(Klik tautan di bawah ini untuk melihat rekaman demonstrasi sistem dan penjelasan keamanan dari kelompok kami)**
 
-# Editing this README
-
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
-
-## Suggestions for a good README
-
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
-
-## Name
-Choose a self-explaining name for your project.
-
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
-
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
-
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
-
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
-
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
-
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
-
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
-
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
-
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+> 🎥 [**Tonton Video Demonstrasi Sistem (YouTube Unlisted)**](https://youtube.com/...)
