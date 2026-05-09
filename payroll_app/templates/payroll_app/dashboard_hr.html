@@ -16,10 +16,10 @@
             <div class="form-row">
                 <div class="form-group">
                     <label for="employee_id">Employee</label>
-                    <select name="employee" id="employee_id" required>
+                    <select name="employee_id" id="employee_id" required>
                         <option value="" disabled selected>Select Employee</option>
                         {% for emp in employees %}
-                        <option value="{{ emp.id }}">{{ emp.username }}</option>
+                            <option value="{{ emp.id }}">{{ emp.username }}</option>
                         {% endfor %}
                     </select>
                 </div>
