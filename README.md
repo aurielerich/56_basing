@@ -172,4 +172,4 @@ Aplikasi ini bersifat lintas platform dan dapat dijalankan dengan mudah pada OS 
 
 ## Link Video Demonstrasi
 
-> 🎥 [**Tonton Video Demonstrasi Sistem (YouTube Unlisted)**](https://youtube.com/...)
+> 🎥 [**Tonton Video Demonstrasi Sistem (YouTube Unlisted)**](https://youtu.be/egzvJqfmO3w)
