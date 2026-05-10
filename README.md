@@ -140,16 +140,36 @@ Aplikasi ini bersifat lintas platform dan dapat dijalankan dengan mudah pada OS 
    ```
 7. Aplikasi sudah berjalan! Buka browser pilihan Anda dan akses `http://127.0.0.1:8000`.
 
----
+## Screenshot Aplikasi: tampilan antarmuka utama, fitur keamanan, dan hasil test-case
+- Screenshot Halaman Login
+<img width="1470" height="956" alt="Screenshot 2026-05-10 at 20 58 17" src="https://github.com/user-attachments/assets/ac9c8fd1-5f7c-4343-a2d5-70bda7391ae6" />
 
-## Visual Testing Assets (Placeholder)
-*(Berikut adalah tempat untuk menyematkan screenshot antarmuka utama, fitur keamanan, dan log hasil pengujian sebelum pengumpulan)*
-- `[ ]` Screenshot Halaman Login
-- `[ ]` Screenshot Dashboard Karyawan
-- `[ ]` Screenshot Dashboard HR
-- `[ ]` Screenshot Bukti Akun Terkunci (Lockout IP/Akun via Axes)
+- Screenshot Halaman Karyawan
+<img width="1470" height="956" alt="Screenshot 2026-05-10 at 21 00 07" src="https://github.com/user-attachments/assets/77e15ae6-0621-475b-b85c-8239a03b65d6" />
+
+- Screenshot Halaman HR Admin
+<img width="1470" height="956" alt="Screenshot 2026-05-10 at 21 01 21" src="https://github.com/user-attachments/assets/70cfea99-1085-4046-997e-bcac30b159f7" />
+
+- Proteksi CSRF
+<img width="1470" height="956" alt="Screenshot 2026-05-10 at 21 03 39" src="https://github.com/user-attachments/assets/7cd08e60-8e97-4ebe-a6fc-f6cc5248ed68" />
+
+- Test-Case Brute-Force & Akun Terkunci (Setelah memasukkan kredensial yang salah 6 kali berturut turut)
+<img width="2940" height="1912" alt="image" src="https://github.com/user-attachments/assets/9f570aa1-a349-4f46-9668-dcdcb70e5caa" />
+
+- Test-Case Role-Based Access Control / Least Privilege
+1. Kita masuk dengan akun karyawan
+<img width="1470" height="956" alt="Screenshot 2026-05-10 at 21 00 07" src="https://github.com/user-attachments/assets/77e15ae6-0621-475b-b85c-8239a03b65d6" />
+2. Ganti url HR di browser
+<img width="1470" height="956" alt="Screenshot 2026-05-10 at 21 09 35" src="https://github.com/user-attachments/assets/2a0e5bb6-6b13-4741-929f-1e75055d1b20" />
+3. Halaman akan langsung beralih ke halaman login
+<img width="1470" height="956" alt="Screenshot 2026-05-10 at 21 09 44" src="https://github.com/user-attachments/assets/fa9cd2e2-6d3c-433d-88c4-a9f37cb3cee2" />
+
+- Test-Case Pencegahan XSS (Cross-Site Scripting)
+<img width="1470" height="956" alt="Screenshot 2026-05-10 at 21 14 44" src="https://github.com/user-attachments/assets/c3f50bc0-1328-4cae-b73f-1b924c3cd7e1" />
+
+- Bukti Hashing Database
+<img width="860" height="62" alt="Screenshot 2026-05-10 at 21 19 12" src="https://github.com/user-attachments/assets/6d2a755d-e20f-4fef-ac0d-f32ec4ef7704" />
 
 ## Link Video Demonstrasi
-**(Klik tautan di bawah ini untuk melihat rekaman demonstrasi sistem dan penjelasan keamanan dari kelompok kami)**
 
 > 🎥 [**Tonton Video Demonstrasi Sistem (YouTube Unlisted)**](https://youtube.com/...)
